@@ -1,0 +1,6 @@
+---
+profile: production
+skip_list:
+  # Roles share the netcfg_ prefix on purpose: one set of control variables
+  # (netcfg_state, netcfg_onboarding, ...) drives every device-class role.
+  - var-naming[no-role-prefix]

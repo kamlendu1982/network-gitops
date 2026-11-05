@@ -1,0 +1,71 @@
+---
+# Shared data contract. The same schema is used by every device-class role,
+# so the vars the customer fills in mean the same thing on IOS, EOS and Junos.
+argument_specs:
+  main:
+    short_description: Golden config for Cisco IOS / IOS-XE (base_config, banner, interfaces)
+    options:
+      netcfg_state:
+        type: str
+        choices: [replaced, merged, overridden, rendered]
+        default: replaced
+      netcfg_onboarding:
+        type: bool
+        default: false
+      netcfg_features:
+        type: list
+        elements: str
+        choices: [base_config, banner, interfaces]
+      base_config:
+        type: dict
+        required: true
+        options:
+          domain_name: {type: str, required: true}
+          timezone:
+            type: dict
+            required: true
+            options:
+              name: {type: str, required: true}
+              abbreviation: {type: str, required: true}
+              utc_offset: {type: int, required: true}
+          name_servers: {type: list, elements: str, default: []}
+          ntp_servers: {type: list, elements: str, default: []}
+          syslog:
+            type: dict
+            options:
+              servers: {type: list, elements: str, default: []}
+              level:
+                type: str
+                default: informational
+                choices: [emergencies, alerts, critical, errors, warnings, notifications, informational, debugging]
+          snmp:
+            type: dict
+            options:
+              location: {type: str}
+              contact: {type: str}
+          session_timeout_min: {type: int, default: 10}
+          lldp: {type: bool, default: true}
+          admin_user: {type: str, default: netadmin}
+      mgmt:
+        type: dict
+        required: true
+        options:
+          interface: {type: str, required: true}
+          vrf: {type: str}
+          address: {type: str, required: true}
+          gateway: {type: str, required: true}
+      banner:
+        type: dict
+        required: true
+        options:
+          motd: {type: str, required: true}
+      interfaces:
+        type: list
+        elements: dict
+        required: true
+        options:
+          name: {type: str, required: true}
+          description: {type: str}
+          enabled: {type: bool, default: true}
+          mtu: {type: int}
+          ipv4: {type: str}

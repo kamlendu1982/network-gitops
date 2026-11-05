@@ -1,0 +1,29 @@
+---
+# Translate the vendor-neutral interface list into each resource module's shape.
+- name: Build interface data for the resource modules
+  ansible.builtin.set_fact:
+    netcfg_l1_interfaces: "{{ lookup('ansible.builtin.template', 'interfaces.yml.j2') | from_yaml }}"
+    netcfg_l3_interfaces: "{{ lookup('ansible.builtin.template', 'l3_interfaces.yml.j2') | from_yaml }}"
+
+# replaced only touches interfaces listed in Git; unlisted ports are left alone.
+- name: Interfaces (description, enabled, MTU)
+  cisco.ios.ios_interfaces:
+    config: "{{ netcfg_l1_interfaces }}"
+    state: "{{ netcfg_state }}"
+  register: netcfg_l1_result
+
+- name: Interface commands
+  ansible.builtin.debug:
+    msg: "{{ netcfg_l1_result.rendered if netcfg_state == 'rendered' else netcfg_l1_result.commands }}"
+
+- name: L3 interfaces (IPv4 addressing)
+  cisco.ios.ios_l3_interfaces:
+    config: "{{ netcfg_l3_interfaces }}"
+    state: "{{ netcfg_state }}"
+  register: netcfg_l3_result
+  when: netcfg_l3_interfaces | length > 0
+
+- name: L3 interface commands
+  ansible.builtin.debug:
+    msg: "{{ netcfg_l3_result.rendered if netcfg_state == 'rendered' else netcfg_l3_result.commands }}"
+  when: netcfg_l3_interfaces | length > 0

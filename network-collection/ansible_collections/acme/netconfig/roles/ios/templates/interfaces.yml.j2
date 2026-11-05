@@ -1,0 +1,11 @@
+{# Vendor-neutral interfaces -> cisco.ios.ios_interfaces #}
+{% for i in interfaces %}
+- name: {{ i.name }}
+{%   if i.description is defined %}
+  description: "{{ i.description }}"
+{%   endif %}
+  enabled: {{ i.enabled | default(true) | bool | lower }}
+{%   if i.mtu is defined %}
+  mtu: {{ i.mtu }}
+{%   endif %}
+{% endfor %}

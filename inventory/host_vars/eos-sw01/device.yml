@@ -1,0 +1,23 @@
+---
+mgmt:
+  interface: Management1
+  vrf: MGMT
+  address: 10.20.0.21/24
+  gateway: 10.20.0.1
+
+interfaces:
+  - name: Loopback0
+    description: Router ID
+    enabled: true
+    ipv4: 10.255.0.2/32
+  - name: Ethernet1
+    description: Uplink to ios-rtr01 Gi1
+    enabled: true
+    mtu: 9214
+    ipv4: 10.30.0.2/30
+  - name: Ethernet2
+    description: Server rack A
+    enabled: true
+  - name: Ethernet3
+    description: Unused
+    enabled: false

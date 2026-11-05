@@ -1,0 +1,20 @@
+---
+# Day 0: first-time onboarding. Pushes base_config, then banner and interfaces.
+#
+#   ansible-playbook acme.netconfig.onboard -e target=ios-rtr01
+#   ansible-playbook acme.netconfig.onboard -e target=eos -e netcfg_state=rendered   # preview only
+
+- name: Onboard network devices
+  hosts: "{{ target | default('network') }}"
+  gather_facts: false
+  serial: "{{ batch_size | default(5) }}"
+  max_fail_percentage: 0
+  vars:
+    netcfg_onboarding: true
+
+  tasks:
+    - name: Apply golden config for this device class
+      ansible.builtin.include_role:
+        name: "acme.netconfig.{{ netcfg_device_class }}"
+        apply: {tags: [always]}
+      tags: [always]

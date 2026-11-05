@@ -1,0 +1,24 @@
+---
+mgmt:
+  interface: fxp0
+  vrf: mgmt_junos               # Junos management instance
+  address: 10.20.0.31/24
+  gateway: 10.20.0.1
+
+interfaces:
+  - name: lo0
+    description: Router ID
+    enabled: true
+    ipv4: 10.255.0.3/32
+  - name: ge-0/0/0
+    description: WAN to ISP-A
+    enabled: true
+    mtu: 1514
+    ipv4: 198.51.100.2/30
+  - name: ge-0/0/1
+    description: Core LAN
+    enabled: true
+    ipv4: 10.40.0.1/24
+  - name: ge-0/0/2
+    description: Unused
+    enabled: false

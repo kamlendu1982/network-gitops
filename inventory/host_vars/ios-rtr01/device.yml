@@ -1,0 +1,24 @@
+---
+mgmt:
+  interface: GigabitEthernet0
+  vrf: Mgmt-intf
+  address: 10.20.0.11/24
+  gateway: 10.20.0.1
+
+interfaces:
+  - name: Loopback0
+    description: Router ID
+    enabled: true
+    ipv4: 10.255.0.1/32
+  - name: GigabitEthernet1
+    description: Uplink to core-sw01 Eth1
+    enabled: true
+    mtu: 1500
+    ipv4: 10.30.0.1/30
+  - name: GigabitEthernet2
+    description: User LAN
+    enabled: true
+    ipv4: 10.10.0.1/24
+  - name: GigabitEthernet3
+    description: Unused
+    enabled: false

@@ -1,0 +1,7 @@
+{# Vendor-neutral interfaces -> junipernetworks.junos.junos_l3_interfaces (unit 0) #}
+{% for i in interfaces if i.ipv4 is defined %}
+- name: {{ i.name }}
+  unit: 0
+  ipv4:
+    - address: {{ i.ipv4 }}
+{% endfor %}

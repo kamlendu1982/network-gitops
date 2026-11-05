@@ -1,0 +1,9 @@
+---
+galaxy_info:
+  role_name: eos
+  author: Network Automation Team
+  description: Golden config for Arista EOS
+  license: GPL-3.0-or-later
+  min_ansible_version: "2.16"
+  platforms: []
+dependencies: []

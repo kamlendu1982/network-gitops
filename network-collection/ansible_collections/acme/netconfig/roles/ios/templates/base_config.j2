@@ -1,0 +1,74 @@
+{#- ===================================================================
+    Cisco IOS / IOS-XE onboarding baseline
+    Inputs: base_config (group_vars/all), mgmt (host_vars),
+            base_admin_secret (AAP credential / CyberArk, type-9 hash)
+    =================================================================== -#}
+{% set b = base_config %}
+{% set vrf = mgmt.vrf | default('') %}
+hostname {{ inventory_hostname }}
+!
+service timestamps debug datetime msec localtime show-timezone
+service timestamps log datetime msec localtime show-timezone
+service password-encryption
+no ip http server
+no ip http secure-server
+!
+clock timezone {{ b.timezone.abbreviation }} {{ b.timezone.utc_offset }} 0
+!
+ip domain name {{ b.domain_name }}
+{% for ns in b.name_servers %}
+ip name-server {{ 'vrf ' ~ vrf ~ ' ' if vrf else '' }}{{ ns }}
+{% endfor %}
+!
+{% if base_admin_secret is defined %}
+username {{ b.admin_user }} privilege 15 secret 9 {{ base_admin_secret }}
+!
+aaa new-model
+aaa authentication login default local
+aaa authorization exec default local
+!
+{% endif %}
+ip ssh version 2
+!
+{% if vrf %}
+vrf definition {{ vrf }}
+ address-family ipv4
+ exit-address-family
+!
+{% endif %}
+interface {{ mgmt.interface }}
+ description Management
+{% if vrf %}
+ vrf forwarding {{ vrf }}
+{% endif %}
+ ip address {{ mgmt.address | ansible.utils.ipaddr('address') }} {{ mgmt.address | ansible.utils.ipaddr('netmask') }}
+ no shutdown
+!
+ip route {{ 'vrf ' ~ vrf ~ ' ' if vrf else '' }}0.0.0.0 0.0.0.0 {{ mgmt.gateway }}
+!
+{% for s in b.ntp_servers %}
+ntp server {{ 'vrf ' ~ vrf ~ ' ' if vrf else '' }}{{ s }}
+{% endfor %}
+!
+logging buffered 64000
+logging trap {{ b.syslog.level }}
+{% for s in b.syslog.servers %}
+logging host {{ s }}{{ ' vrf ' ~ vrf if vrf else '' }}
+{% endfor %}
+!
+{% if b.snmp.location is defined %}
+snmp-server location {{ b.snmp.location }}
+{% endif %}
+{% if b.snmp.contact is defined %}
+snmp-server contact {{ b.snmp.contact }}
+{% endif %}
+!
+{% if b.lldp %}
+lldp run
+{% endif %}
+!
+line con 0
+ exec-timeout {{ b.session_timeout_min }} 0
+line vty 0 15
+ exec-timeout {{ b.session_timeout_min }} 0
+ transport input ssh

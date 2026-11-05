@@ -1,0 +1,4 @@
+---
+netcfg_device_class: junos
+ansible_connection: ansible.netcommon.netconf
+ansible_network_os: junipernetworks.junos.junos

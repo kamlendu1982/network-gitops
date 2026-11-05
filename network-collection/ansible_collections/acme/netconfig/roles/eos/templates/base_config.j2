@@ -1,0 +1,63 @@
+{#- ===================================================================
+    Arista EOS onboarding baseline (3-space indentation, as in running-config)
+    Inputs: base_config (group_vars/all), mgmt (host_vars),
+            base_admin_secret (AAP credential / CyberArk, sha512 hash)
+    =================================================================== -#}
+{% set b = base_config %}
+{% set vrf = mgmt.vrf | default('default') %}
+hostname {{ inventory_hostname }}
+!
+clock timezone {{ b.timezone.name }}
+!
+dns domain {{ b.domain_name }}
+{% for ns in b.name_servers %}
+ip name-server vrf {{ vrf }} {{ ns }}
+{% endfor %}
+!
+{% if base_admin_secret is defined %}
+username {{ b.admin_user }} privilege 15 role network-admin secret sha512 {{ base_admin_secret }}
+!
+{% endif %}
+{% if vrf != 'default' %}
+vrf instance {{ vrf }}
+!
+{% endif %}
+interface {{ mgmt.interface }}
+   description Management
+{% if vrf != 'default' %}
+   vrf {{ vrf }}
+{% endif %}
+   ip address {{ mgmt.address }}
+   no shutdown
+!
+ip route vrf {{ vrf }} 0.0.0.0/0 {{ mgmt.gateway }}
+!
+{% for s in b.ntp_servers %}
+ntp server vrf {{ vrf }} {{ s }}
+{% endfor %}
+!
+logging buffered 64000
+logging trap {{ b.syslog.level }}
+{% for s in b.syslog.servers %}
+logging vrf {{ vrf }} host {{ s }}
+{% endfor %}
+!
+{% if b.snmp.location is defined %}
+snmp-server location {{ b.snmp.location }}
+{% endif %}
+{% if b.snmp.contact is defined %}
+snmp-server contact {{ b.snmp.contact }}
+{% endif %}
+!
+{% if b.lldp %}
+lldp run
+{% else %}
+no lldp run
+{% endif %}
+!
+management ssh
+   idle-timeout {{ b.session_timeout_min }}
+{% if vrf != 'default' %}
+   vrf {{ vrf }}
+      no shutdown
+{% endif %}

@@ -1,0 +1,46 @@
+{#- ===================================================================
+    Juniper Junos onboarding baseline ("set" format, pushed with commit confirmed)
+    Inputs: base_config (group_vars/all), mgmt (host_vars),
+            base_admin_secret (AAP credential / CyberArk, $6$ crypt hash)
+    =================================================================== -#}
+{% set b = base_config %}
+{% set vrf = mgmt.vrf | default('') %}
+{% set level_map = {'emergencies': 'emergency', 'alerts': 'alert', 'critical': 'critical',
+                    'errors': 'error', 'warnings': 'warning', 'notifications': 'notice',
+                    'informational': 'info', 'debugging': 'any'} %}
+set system host-name {{ inventory_hostname }}
+set system domain-name {{ b.domain_name }}
+set system time-zone {{ b.timezone.name }}
+{% for ns in b.name_servers %}
+set system name-server {{ ns }}
+{% endfor %}
+{% for s in b.ntp_servers %}
+set system ntp server {{ s }}{{ ' routing-instance ' ~ vrf if vrf else '' }}
+{% endfor %}
+{% for s in b.syslog.servers %}
+set system syslog host {{ s }} any {{ level_map[b.syslog.level] }}
+{% endfor %}
+set system services ssh root-login deny
+set system services netconf ssh
+set system login class NET-ADMIN permissions all
+set system login class NET-ADMIN idle-timeout {{ b.session_timeout_min }}
+{% if base_admin_secret is defined %}
+set system login user {{ b.admin_user }} class NET-ADMIN authentication encrypted-password "{{ base_admin_secret }}"
+{% endif %}
+set interfaces {{ mgmt.interface }} description Management
+set interfaces {{ mgmt.interface }} unit 0 family inet address {{ mgmt.address }}
+{% if vrf == 'mgmt_junos' %}
+set system management-instance
+set routing-instances mgmt_junos routing-options static route 0.0.0.0/0 next-hop {{ mgmt.gateway }}
+{% else %}
+set routing-options static route 0.0.0.0/0 next-hop {{ mgmt.gateway }}
+{% endif %}
+{% if b.snmp.location is defined %}
+set snmp location "{{ b.snmp.location }}"
+{% endif %}
+{% if b.snmp.contact is defined %}
+set snmp contact "{{ b.snmp.contact }}"
+{% endif %}
+{% if b.lldp %}
+set protocols lldp interface all
+{% endif %}

@@ -1,0 +1,29 @@
+---
+# Vendor-neutral onboarding baseline, shared by every device class.
+# Each role's templates/base_config.j2 turns this into that vendor's syntax.
+
+base_config:
+  domain_name: corp.example.com
+  timezone:
+    name: America/New_York      # EOS and Junos use the IANA name
+    abbreviation: EST           # IOS uses abbreviation + offset
+    utc_offset: -5
+  name_servers:
+    - 10.0.0.53
+    - 10.0.1.53
+  ntp_servers:
+    - 10.0.0.10
+    - 10.0.0.11
+  syslog:
+    servers:
+      - 10.0.0.50
+    level: informational
+  snmp:
+    location: DC1 - Row A
+    contact: netops@corp.example.com
+  session_timeout_min: 10
+  lldp: true
+  admin_user: netadmin
+  # The admin password hash is never stored in Git. Inject base_admin_secret
+  # at run time from an AAP credential backed by CyberArk. If it's not set,
+  # the template skips the local user (and the IOS AAA lines).

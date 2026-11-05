@@ -1,0 +1,40 @@
+---
+- name: Render base config to a file (preview only)
+  ansible.builtin.template:
+    src: base_config.j2
+    dest: "{{ netcfg_render_dir }}/{{ inventory_hostname }}_base_config.cfg"
+    mode: "0640"
+  delegate_to: localhost
+  when: netcfg_state == 'rendered'
+
+- name: Show rendered base config
+  ansible.builtin.debug:
+    msg: "{{ lookup('ansible.builtin.template', 'base_config.j2').splitlines() }}"
+  when: netcfg_state == 'rendered'
+
+# Commit with a rollback timer: if the device becomes unreachable after the
+# commit, Junos rolls back on its own after netcfg_junos_confirm_min minutes.
+- name: Push base config (commit confirmed, backup first)
+  junipernetworks.junos.junos_config:
+    src: base_config.j2
+    src_format: set
+    confirm: "{{ netcfg_junos_confirm_min }}"
+    comment: "Ansible onboarding baseline"
+    backup: true
+    backup_options:
+      dir_path: "{{ netcfg_backup_dir }}"
+      filename: "{{ inventory_hostname }}_pre_onboard.cfg"
+  register: netcfg_base_result
+  when: netcfg_state != 'rendered'
+
+- name: Confirm the commit (device is still reachable)
+  junipernetworks.junos.junos_config:
+    confirm_commit: true
+  when:
+    - netcfg_state != 'rendered'
+    - netcfg_base_result is changed
+
+- name: Base config changes sent to the device
+  ansible.builtin.debug:
+    msg: "{{ netcfg_base_result.updates | default(netcfg_base_result.diff | default('no changes')) }}"
+  when: netcfg_state != 'rendered'

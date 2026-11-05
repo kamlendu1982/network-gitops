@@ -1,0 +1,13 @@
+---
+# junipernetworks.junos.junos_banner is not a resource module, so it has no rendered state.
+- name: MOTD banner
+  junipernetworks.junos.junos_banner:
+    banner: motd
+    text: "{{ banner.motd | trim }}"
+    state: present
+  when: netcfg_state != 'rendered'
+
+- name: MOTD banner (preview)
+  ansible.builtin.debug:
+    msg: "{{ banner.motd | trim }}"
+  when: netcfg_state == 'rendered'

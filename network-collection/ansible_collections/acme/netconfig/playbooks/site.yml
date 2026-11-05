@@ -1,0 +1,21 @@
+---
+# Day 2: enforce the golden config from Git. base_config is skipped
+# (netcfg_onboarding stays false), so only banner and interfaces run.
+#
+#   ansible-playbook acme.netconfig.site                       # all devices
+#   ansible-playbook acme.netconfig.site --tags interfaces     # one feature
+#   ansible-playbook acme.netconfig.site --check --diff        # dry run
+#   ansible-playbook acme.netconfig.site -e netcfg_state=rendered
+
+- name: Enforce golden config
+  hosts: "{{ target | default('network') }}"
+  gather_facts: false
+  serial: "{{ batch_size | default('20%') }}"
+  max_fail_percentage: 0
+
+  tasks:
+    - name: Apply golden config for this device class
+      ansible.builtin.include_role:
+        name: "acme.netconfig.{{ netcfg_device_class }}"
+        apply: {tags: [always]}
+      tags: [always]
