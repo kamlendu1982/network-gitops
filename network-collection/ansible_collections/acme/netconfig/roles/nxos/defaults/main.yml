@@ -16,3 +16,10 @@ netcfg_backup_dir: "{{ lookup('ansible.builtin.env', 'PWD') }}/backups"
 # Rewrite mgmt0 IP/VRF/default-route only when explicitly enabled.
 # Default false: changing mgmt while connected over SSH causes session loss / timeouts.
 netcfg_configure_mgmt: false
+
+# Backup before push (fetch running-config). Off by default — safer on flaky lab SSH.
+netcfg_backup: false
+netcfg_push_retries: 3
+netcfg_push_delay: 10
+netcfg_ssh_wait_timeout: 30
+

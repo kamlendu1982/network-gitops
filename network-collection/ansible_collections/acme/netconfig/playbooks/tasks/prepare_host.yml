@@ -59,18 +59,23 @@
     extensions: [yml, yaml]
   when: (netcfg_data_path ~ '/group_vars/all') is directory
 
-- name: Load device-class vars from project (timeouts, netcfg_configure_mgmt, …)
+# Only netcfg.yml — not connection.yml. Re-setting ansible_connection mid-play
+# (e.g. network_cli -> ansible.netcommon.network_cli) breaks NX-OS on AAP/EE.
+- name: Load device-class netcfg settings from project
   ansible.builtin.include_vars:
-    dir: "{{ netcfg_data_path }}/group_vars/{{ netcfg_device_class }}"
-    extensions: [yml, yaml]
-  when: (netcfg_data_path ~ '/group_vars/' ~ netcfg_device_class) is directory
+    file: "{{ netcfg_data_path }}/group_vars/{{ netcfg_device_class }}/netcfg.yml"
+  when: (netcfg_data_path ~ '/group_vars/' ~ netcfg_device_class ~ '/netcfg.yml') is file
+
+- name: Normalize ansible_port to int (NetBox often stores it as a string)
+  ansible.builtin.set_fact:
+    ansible_port: "{{ ansible_port | int }}"
+  when: ansible_port is defined
 
 - name: Load host intent from project (mgmt, interfaces)
   ansible.builtin.include_vars:
     dir: "{{ netcfg_data_path }}/host_vars/{{ inventory_hostname }}"
     extensions: [yml, yaml]
   when: (netcfg_data_path ~ '/host_vars/' ~ inventory_hostname) is directory
-
 
 - name: Require golden-config intent vars
   ansible.builtin.assert:

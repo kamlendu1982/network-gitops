@@ -1,6 +1,6 @@
 ---
-# nxos_config has no "content" param (unlike ios_config). Render Jinja to a
-# file on the controller, then push with src so indented NX-OS blocks stay intact.
+# nxos_config has no "content" param. Render Jinja locally, then push as lines
+# (flat baseline). Avoid src + libssh paths that RST against containerlab n9kv.
 
 - name: Ensure render directory exists
   ansible.builtin.file:
@@ -23,16 +23,49 @@
     msg: "{{ lookup('ansible.builtin.file', netcfg_render_dir ~ '/' ~ inventory_hostname ~ '_base_config.cfg').splitlines() }}"
   when: netcfg_state == 'rendered'
 
-- name: Push base config (backup first; save in a separate task)
+- name: Check device SSH port is reachable from the controller
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host }}"
+    port: "{{ ansible_port | default(22) | int }}"
+    timeout: "{{ netcfg_ssh_wait_timeout | default(30) | int }}"
+    state: started
+  delegate_to: localhost
+  become: false
+  when: netcfg_state != 'rendered'
+
+- name: Prove network_cli login (show version)
+  cisco.nxos.nxos_command:
+    commands: show version
+  register: netcfg_nxos_preflight
+  retries: "{{ netcfg_push_retries | default(3) | int }}"
+  delay: "{{ netcfg_push_delay | default(10) | int }}"
+  until: netcfg_nxos_preflight is succeeded
+  when: netcfg_state != 'rendered'
+
+- name: Build base config line list
+  ansible.builtin.set_fact:
+    netcfg_base_lines: >-
+      {{
+        lookup('ansible.builtin.file', netcfg_render_dir ~ '/' ~ inventory_hostname ~ '_base_config.cfg').splitlines()
+        | map('trim')
+        | reject('equalto', '')
+        | reject('equalto', '!')
+        | list
+      }}
+  when: netcfg_state != 'rendered'
+
+- name: Push base config
   cisco.nxos.nxos_config:
-    src: "{{ netcfg_render_dir }}/{{ inventory_hostname }}_base_config.cfg"
-    backup: true
-    backup_options:
-      dir_path: "{{ netcfg_backup_dir }}"
-      filename: "{{ inventory_hostname }}_pre_onboard.cfg"
+    lines: "{{ netcfg_base_lines }}"
+    match: line
     save_when: never
   register: netcfg_base_result
-  when: netcfg_state != 'rendered'
+  retries: "{{ netcfg_push_retries | default(3) | int }}"
+  delay: "{{ netcfg_push_delay | default(10) | int }}"
+  until: netcfg_base_result is succeeded
+  when:
+    - netcfg_state != 'rendered'
+    - netcfg_base_lines | length > 0
 
 - name: Save running-config after base config changes
   cisco.nxos.nxos_config:
