@@ -16,3 +16,9 @@ netcfg_configure_mgmt: false
 netcfg_backup: false
 netcfg_push_retries: 3
 netcfg_push_delay: 10
+
+# Keep ansible_connection=network_cli in NetBox. Day-0 push uses OpenSSH from
+# the controller until network_cli (paramiko/libssh) stops RST against n9kv.
+netcfg_nxos_cli_via: openssh
+
+

@@ -1,6 +1,9 @@
 ---
-# nxos_config has no "content" param. Render Jinja locally, then push as lines
-# (flat baseline). Avoid src + libssh paths that RST against containerlab n9kv.
+# Day-0 baseline. AAP ad-hoc ping (OpenSSH) works to leaf4, but network_cli
+# (paramiko/libssh) gets "Connection reset by peer" before any config apply.
+# Default transport for push is OpenSSH from the controller; inventory can keep
+# ansible_connection: network_cli for later modules. Set
+# netcfg_nxos_cli_via: network_cli to use nxos_config instead.
 
 - name: Ensure render directory exists
   ansible.builtin.file:
@@ -33,15 +36,6 @@
   become: false
   when: netcfg_state != 'rendered'
 
-- name: Prove network_cli login (show version)
-  cisco.nxos.nxos_command:
-    commands: show version
-  register: netcfg_nxos_preflight
-  retries: "{{ netcfg_push_retries | default(3) | int }}"
-  delay: "{{ netcfg_push_delay | default(10) | int }}"
-  until: netcfg_nxos_preflight is succeeded
-  when: netcfg_state != 'rendered'
-
 - name: Build base config line list
   ansible.builtin.set_fact:
     netcfg_base_lines: >-
@@ -54,7 +48,80 @@
       }}
   when: netcfg_state != 'rendered'
 
-- name: Push base config
+- name: Require device login vars for OpenSSH push
+  ansible.builtin.assert:
+    that:
+      - ansible_user is defined
+      - ansible_host is defined
+    fail_msg: >-
+      OpenSSH day-0 push needs ansible_user and ansible_host
+      (from the AAP Network/Machine credential + inventory).
+    quiet: true
+  when:
+    - netcfg_state != 'rendered'
+    - (netcfg_nxos_cli_via | default('openssh')) == 'openssh'
+
+- name: Push base config via OpenSSH (same stack as AAP ad-hoc ping)
+  ansible.builtin.shell: |
+    set -euo pipefail
+    CFG="{{ netcfg_render_dir }}/{{ inventory_hostname }}_base_config.cfg"
+    HOST="{{ ansible_host }}"
+    PORT="{{ ansible_port | default(22) | int }}"
+    USER="{{ ansible_user }}"
+
+    mapfile -t LINES < <(grep -vE '^[[:space:]]*$|^!' "$CFG" || true)
+    if [ "${#LINES[@]}" -eq 0 ]; then
+      echo "No base_config lines to push"
+      exit 0
+    fi
+
+    {
+      echo "configure terminal"
+      printf '%s\n' "${LINES[@]}"
+      echo "end"
+      echo "copy running-config startup-config"
+    } > "/tmp/{{ inventory_hostname }}_nxos_push.txt"
+
+    SSH_OPTS=(-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -p "$PORT")
+
+    if [ -n "${SSHPASS:-}" ] && command -v sshpass >/dev/null 2>&1; then
+      sshpass -e ssh -tt "${SSH_OPTS[@]}" "${USER}@${HOST}" "$(
+        awk '{printf "%s ; ", $0}' "/tmp/{{ inventory_hostname }}_nxos_push.txt" | sed 's/ ; $/\n/'
+      )"
+    elif [ -n "${SSHPASS:-}" ]; then
+      echo "ERROR: ansible_password is set but sshpass is not installed in the EE" >&2
+      exit 1
+    else
+      ssh -tt "${SSH_OPTS[@]}" "${USER}@${HOST}" "$(
+        awk '{printf "%s ; ", $0}' "/tmp/{{ inventory_hostname }}_nxos_push.txt" | sed 's/ ; $/\n/'
+      )"
+    fi
+  args:
+    executable: /bin/bash
+  environment:
+    SSHPASS: "{{ ansible_password | default('') }}"
+  delegate_to: localhost
+  become: false
+  register: netcfg_base_openssh
+  changed_when: netcfg_base_openssh.rc == 0 and (netcfg_base_lines | length > 0)
+  no_log: false
+  when:
+    - netcfg_state != 'rendered'
+    - (netcfg_nxos_cli_via | default('openssh')) == 'openssh'
+    - netcfg_base_lines | length > 0
+
+- name: Prove network_cli login (show version)
+  cisco.nxos.nxos_command:
+    commands: show version
+  register: netcfg_nxos_preflight
+  retries: "{{ netcfg_push_retries | default(3) | int }}"
+  delay: "{{ netcfg_push_delay | default(10) | int }}"
+  until: netcfg_nxos_preflight is succeeded
+  when:
+    - netcfg_state != 'rendered'
+    - (netcfg_nxos_cli_via | default('openssh')) == 'network_cli'
+
+- name: Push base config via network_cli
   cisco.nxos.nxos_config:
     lines: "{{ netcfg_base_lines }}"
     match: line
@@ -65,16 +132,23 @@
   until: netcfg_base_result is succeeded
   when:
     - netcfg_state != 'rendered'
+    - (netcfg_nxos_cli_via | default('openssh')) == 'network_cli'
     - netcfg_base_lines | length > 0
 
-- name: Save running-config after base config changes
+- name: Save running-config after network_cli base config changes
   cisco.nxos.nxos_config:
     save_when: always
   when:
     - netcfg_state != 'rendered'
+    - (netcfg_nxos_cli_via | default('openssh')) == 'network_cli'
+    - netcfg_base_result is defined
     - netcfg_base_result is changed
 
-- name: Base config changes sent to the device
+- name: Base config push result
   ansible.builtin.debug:
-    msg: "{{ netcfg_base_result.updates | default(netcfg_base_result.diff | default('no changes')) }}"
+    msg: >-
+      {{
+        netcfg_base_openssh.stdout_lines
+        | default(netcfg_base_result.updates | default(netcfg_base_result.diff | default('no changes')))
+      }}
   when: netcfg_state != 'rendered'

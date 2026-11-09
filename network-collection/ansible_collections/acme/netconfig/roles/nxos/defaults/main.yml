@@ -7,6 +7,8 @@ netcfg_state: replaced
 # Features this role manages. Select a subset at run time with --tags.
 netcfg_features: [base_config, banner, interfaces]
 
+
+
 # base_config only runs when this is true (set by the onboard playbook).
 netcfg_onboarding: false
 
@@ -22,4 +24,10 @@ netcfg_backup: false
 netcfg_push_retries: 3
 netcfg_push_delay: 10
 netcfg_ssh_wait_timeout: 30
+
+# Day-0 push transport for NX-OS:
+#   openssh     — controller OpenSSH/sshpass (works when AAP ad-hoc ping works)
+#   network_cli — cisco.nxos.nxos_config (inventory ansible_connection stays network_cli either way)
+netcfg_nxos_cli_via: openssh
+
 
