@@ -3,6 +3,9 @@
 #
 #   ansible-playbook acme.netconfig.onboard -e target=ios-rtr01
 #   ansible-playbook acme.netconfig.onboard -e target=eos -e netcfg_state=rendered   # preview only
+#
+# Connection vars may come from NetBox/AAP inventory. Golden-config intent
+# (base_config, banner, mgmt, interfaces) is loaded from project inventory/.
 
 - name: Onboard network devices
   hosts: "{{ target | default('network') }}"
@@ -12,7 +15,6 @@
   vars:
     netcfg_onboarding: true
     # Map ansible_network_os (e.g. from NetBox) -> role name under acme.netconfig.
-    # Inventory may still set netcfg_device_class explicitly to override.
     netcfg_os_class_map:
       cisco.ios.ios: ios
       cisco.nxos.nxos: nxos
@@ -20,25 +22,10 @@
       junipernetworks.junos.junos: junos
 
   tasks:
-    - name: Resolve device class from ansible_network_os when not set
-      ansible.builtin.set_fact:
-        netcfg_device_class: "{{ netcfg_os_class_map[ansible_network_os] }}"
-      when:
-        - netcfg_device_class is not defined
-        - ansible_network_os is defined
-        - ansible_network_os in netcfg_os_class_map
-      tags: [always]
-
-    - name: Require a known device class
-      ansible.builtin.assert:
-        that:
-          - netcfg_device_class is defined
-          - netcfg_device_class in netcfg_os_class_map.values() | list
-        fail_msg: >-
-          Cannot resolve device class for {{ inventory_hostname }}.
-          Set netcfg_device_class (ios|nxos|eos|junos) or ansible_network_os
-          to one of: {{ netcfg_os_class_map.keys() | list | join(', ') }}.
-        quiet: true
+    - name: Prepare host (device class + Git intent)
+      ansible.builtin.include_tasks:
+        file: tasks/prepare_host.yml
+        apply: {tags: [always]}
       tags: [always]
 
     - name: Apply golden config for this device class
