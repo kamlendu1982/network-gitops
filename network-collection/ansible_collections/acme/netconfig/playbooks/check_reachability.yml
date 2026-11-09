@@ -57,3 +57,12 @@
           Fix containerlab/n9kv SSH on that port before running onboard.
           (ad-hoc ping is not a sufficient check for NX-OS CLI.)
         quiet: true
+
+    - name: Run show banner motd via raw
+      ansible.builtin.raw: show banner motd
+      register: netcfg_check_banner
+      changed_when: false
+
+    - name: Banner on device
+      ansible.builtin.debug:
+        msg: "{{ netcfg_check_banner.stdout_lines | default(netcfg_check_banner.stdout | default('') | split('\n')) }}"
