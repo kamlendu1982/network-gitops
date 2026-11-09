@@ -1,20 +1,31 @@
 ---
-- name: Render base config to a file (preview only)
+# nxos_config has no "content" param (unlike ios_config). Render Jinja to a
+# file on the controller, then push with src so indented NX-OS blocks stay intact.
+
+- name: Ensure render directory exists
+  ansible.builtin.file:
+    path: "{{ netcfg_render_dir }}"
+    state: directory
+    mode: "0750"
+  delegate_to: localhost
+  become: false
+
+- name: Render base config to a file
   ansible.builtin.template:
     src: base_config.j2
     dest: "{{ netcfg_render_dir }}/{{ inventory_hostname }}_base_config.cfg"
     mode: "0640"
   delegate_to: localhost
-  when: netcfg_state == 'rendered'
+  become: false
 
 - name: Show rendered base config
   ansible.builtin.debug:
-    msg: "{{ lookup('ansible.builtin.template', 'base_config.j2').splitlines() }}"
+    msg: "{{ lookup('ansible.builtin.file', netcfg_render_dir ~ '/' ~ inventory_hostname ~ '_base_config.cfg').splitlines() }}"
   when: netcfg_state == 'rendered'
 
 - name: Push base config (backup first, save if changed)
   cisco.nxos.nxos_config:
-    content: "{{ lookup('ansible.builtin.template', 'base_config.j2') }}"
+    src: "{{ netcfg_render_dir }}/{{ inventory_hostname }}_base_config.cfg"
     backup: true
     backup_options:
       dir_path: "{{ netcfg_backup_dir }}"
