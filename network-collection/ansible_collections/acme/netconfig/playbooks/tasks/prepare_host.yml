@@ -1,0 +1,80 @@
+---
+# Shared by onboard.yml and site.yml.
+# NetBox / AAP inventory supplies connection vars; Git inventory/ supplies
+# golden-config intent (base_config, banner, mgmt, interfaces).
+
+- name: Resolve device class from ansible_network_os when not set
+  ansible.builtin.set_fact:
+    netcfg_device_class: "{{ netcfg_os_class_map[ansible_network_os] }}"
+  when:
+    - netcfg_device_class is not defined
+    - ansible_network_os is defined
+    - ansible_network_os in netcfg_os_class_map
+
+- name: Require a known device class
+  ansible.builtin.assert:
+    that:
+      - netcfg_device_class is defined
+      - netcfg_device_class in netcfg_os_class_map.values() | list
+    fail_msg: >-
+      Cannot resolve device class for {{ inventory_hostname }}.
+      Set netcfg_device_class (ios|nxos|eos|junos) or ansible_network_os
+      to one of: {{ netcfg_os_class_map.keys() | list | join(', ') }}.
+    quiet: true
+
+# Prefer an explicit extra var, then AAP/project cwd, then path relative to this playbook.
+- name: Build candidate paths for project inventory
+  ansible.builtin.set_fact:
+    netcfg_data_candidates: "{{ _candidates | select('string') | reject('equalto', '') | list }}"
+  vars:
+    _candidates:
+      - "{{ netcfg_data_path | default('') }}"
+      - "{{ lookup('ansible.builtin.env', 'PWD') }}/inventory"
+      - "{{ playbook_dir }}/../../../../../inventory"
+
+- name: Pick the first existing project inventory directory
+  ansible.builtin.set_fact:
+    netcfg_data_path: "{{ item }}"
+  loop: "{{ netcfg_data_candidates }}"
+  when:
+    - netcfg_data_path is not defined or not (netcfg_data_path is directory)
+    - item is directory
+  loop_control:
+    label: "{{ item }}"
+
+- name: Require project inventory path
+  ansible.builtin.assert:
+    that:
+      - netcfg_data_path is defined
+      - netcfg_data_path is directory
+    fail_msg: >-
+      Cannot find project inventory/ for golden-config intent.
+      Set extra var netcfg_data_path to the inventory directory in the project
+      (tried: {{ netcfg_data_candidates | join(', ') }}).
+    quiet: true
+
+- name: Load shared intent from project (base_config, banner)
+  ansible.builtin.include_vars:
+    dir: "{{ netcfg_data_path }}/group_vars/all"
+    extensions: [yml, yaml]
+  when: (netcfg_data_path ~ '/group_vars/all') is directory
+
+- name: Load host intent from project (mgmt, interfaces)
+  ansible.builtin.include_vars:
+    dir: "{{ netcfg_data_path }}/host_vars/{{ inventory_hostname }}"
+    extensions: [yml, yaml]
+  when: (netcfg_data_path ~ '/host_vars/' ~ inventory_hostname) is directory
+
+- name: Require golden-config intent vars
+  ansible.builtin.assert:
+    that:
+      - base_config is defined
+      - banner is defined
+      - mgmt is defined
+      - interfaces is defined
+    fail_msg: >-
+      Missing intent for {{ inventory_hostname }}.
+      Add inventory/group_vars/all/{base_config,banner}.yml and
+      inventory/host_vars/{{ inventory_hostname }}/device.yml in the Git project
+      (NetBox only provides connection vars). Looked under {{ netcfg_data_path }}.
+    quiet: true
