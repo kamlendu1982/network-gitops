@@ -26,8 +26,8 @@ netcfg_push_delay: 10
 netcfg_ssh_wait_timeout: 30
 
 # Day-0 push transport for NX-OS:
-#   openssh     — controller OpenSSH/sshpass (works when AAP ad-hoc ping works)
-#   network_cli — cisco.nxos.nxos_config (inventory ansible_connection stays network_cli either way)
+#   openssh     — ansible.builtin.raw + task ansible_connection=ssh (same stack as ad-hoc ping)
+#   network_cli — cisco.nxos.nxos_config (inventory can still list network_cli)
 netcfg_nxos_cli_via: openssh
 
 

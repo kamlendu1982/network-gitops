@@ -1,9 +1,10 @@
 ---
-# Day-0 baseline. AAP ad-hoc ping (OpenSSH) works to leaf4, but network_cli
-# (paramiko/libssh) gets "Connection reset by peer" before any config apply.
-# Default transport for push is OpenSSH from the controller; inventory can keep
-# ansible_connection: network_cli for later modules. Set
-# netcfg_nxos_cli_via: network_cli to use nxos_config instead.
+# Day-0 baseline for NX-OS.
+#
+# AAP ad-hoc ping works; network_cli and system /usr/bin/ssh both get
+# "Connection reset by peer" during KEX against containerlab n9kv.
+# Use ansible.builtin.raw with task-level ansible_connection=ssh so we ride
+# the same Ansible SSH stack as ping. Inventory can keep network_cli for later.
 
 - name: Ensure render directory exists
   ansible.builtin.file:
@@ -26,16 +27,6 @@
     msg: "{{ lookup('ansible.builtin.file', netcfg_render_dir ~ '/' ~ inventory_hostname ~ '_base_config.cfg').splitlines() }}"
   when: netcfg_state == 'rendered'
 
-- name: Check device SSH port is reachable from the controller
-  ansible.builtin.wait_for:
-    host: "{{ ansible_host }}"
-    port: "{{ ansible_port | default(22) | int }}"
-    timeout: "{{ netcfg_ssh_wait_timeout | default(30) | int }}"
-    state: started
-  delegate_to: localhost
-  become: false
-  when: netcfg_state != 'rendered'
-
 - name: Build base config line list
   ansible.builtin.set_fact:
     netcfg_base_lines: >-
@@ -48,42 +39,43 @@
       }}
   when: netcfg_state != 'rendered'
 
-- name: Require device login vars for OpenSSH push
+- name: Prove Ansible SSH login (raw show clock — same stack as ad-hoc ping)
+  ansible.builtin.raw: show clock
+  vars:
+    ansible_connection: ssh
+    ansible_become: false
+  register: netcfg_ssh_preflight
+  changed_when: false
+  failed_when: false
+  when:
+    - netcfg_state != 'rendered'
+    - (netcfg_nxos_cli_via | default('openssh')) == 'openssh'
+
+- name: Require Ansible SSH preflight success
   ansible.builtin.assert:
     that:
-      - ansible_user is defined
-      - ansible_host is defined
+      - netcfg_ssh_preflight.rc | default(1) == 0
     fail_msg: >-
-      OpenSSH day-0 push needs ansible_user and ansible_host
-      (from the AAP Network/Machine credential + inventory).
+      Ansible SSH raw preflight failed (rc={{ netcfg_ssh_preflight.rc | default('n/a') }}).
+      stdout={{ netcfg_ssh_preflight.stdout | default('') }}
+      stderr={{ netcfg_ssh_preflight.stderr | default('') }}
+      If ad-hoc ping works but this fails, compare credential/connection on the JT.
     quiet: true
   when:
     - netcfg_state != 'rendered'
     - (netcfg_nxos_cli_via | default('openssh')) == 'openssh'
 
-- name: Render OpenSSH push script
-  ansible.builtin.template:
-    src: push_base_openssh.sh.j2
-    dest: "{{ netcfg_render_dir }}/{{ inventory_hostname }}_push_base_openssh.sh"
-    mode: "0700"
-  delegate_to: localhost
-  become: false
-  when:
-    - netcfg_state != 'rendered'
-    - (netcfg_nxos_cli_via | default('openssh')) == 'openssh'
-    - netcfg_base_lines | length > 0
-
-- name: Push base config via OpenSSH (same stack as AAP ad-hoc ping)
-  ansible.builtin.command:
-    argv:
-      - /bin/bash
-      - "{{ netcfg_render_dir }}/{{ inventory_hostname }}_push_base_openssh.sh"
-  environment:
-    SSHPASS: "{{ ansible_password | default('') }}"
-  delegate_to: localhost
-  become: false
-  register: netcfg_base_openssh
-  changed_when: netcfg_base_openssh.rc == 0 and (netcfg_base_lines | length > 0)
+- name: Push base config via Ansible SSH raw
+  ansible.builtin.raw: >-
+    configure terminal ;
+    {{ netcfg_base_lines | join(' ; ') }} ;
+    end ;
+    copy running-config startup-config
+  vars:
+    ansible_connection: ssh
+    ansible_become: false
+  register: netcfg_base_raw
+  changed_when: netcfg_base_lines | length > 0
   when:
     - netcfg_state != 'rendered'
     - (netcfg_nxos_cli_via | default('openssh')) == 'openssh'
@@ -127,7 +119,7 @@
   ansible.builtin.debug:
     msg: >-
       {{
-        netcfg_base_openssh.stdout_lines
-        | default(netcfg_base_result.updates | default(netcfg_base_result.diff | default('no changes')))
+        netcfg_base_raw.stdout_lines
+        | default(netcfg_base_result.updates | default(netcfg_base_result.diff | default(netcfg_ssh_preflight.stdout_lines | default('no changes'))))
       }}
   when: netcfg_state != 'rendered'

@@ -14,11 +14,12 @@ ansible_ssh_retries: 3
 
 netcfg_configure_mgmt: false
 netcfg_backup: false
-netcfg_push_retries: 3
-netcfg_push_delay: 10
+netcfg_push_retries: 5
+netcfg_push_delay: 15
 
-# Keep ansible_connection=network_cli in NetBox. Day-0 push uses OpenSSH from
-# the controller until network_cli (paramiko/libssh) stops RST against n9kv.
+# Keep ansible_connection=network_cli in NetBox.
+# Day-0 uses ansible.builtin.raw with task-level ansible_connection=ssh
+# (same stack as AAP ad-hoc ping). Set network_cli to use nxos_* modules.
 netcfg_nxos_cli_via: openssh
 
 

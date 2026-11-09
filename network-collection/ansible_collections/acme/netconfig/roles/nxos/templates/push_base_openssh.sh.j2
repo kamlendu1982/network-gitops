@@ -7,8 +7,51 @@ HOST="{{ ansible_host }}"
 PORT="{{ ansible_port | default(22) | int }}"
 USER="{{ ansible_user }}"
 PUSH_FILE="/tmp/{{ inventory_hostname }}_nxos_push.txt"
+RETRIES="{{ netcfg_push_retries | default(5) | int }}"
+DELAY="{{ netcfg_push_delay | default(15) | int }}"
 
 {% raw %}
+SSH_OPTS=(
+  -o StrictHostKeyChecking=no
+  -o UserKnownHostsFile=/dev/null
+  -o LogLevel=ERROR
+  -o ConnectTimeout=20
+  -o ConnectionAttempts=1
+  -p "$PORT"
+)
+
+ssh_cmd() {
+  if [ -n "${SSHPASS:-}" ] && command -v sshpass >/dev/null 2>&1; then
+    sshpass -e ssh "${SSH_OPTS[@]}" "${USER}@${HOST}" "$@"
+  elif [ -n "${SSHPASS:-}" ]; then
+    echo "ERROR: ansible_password is set but sshpass is not installed in the EE" >&2
+    exit 1
+  else
+    ssh "${SSH_OPTS[@]}" "${USER}@${HOST}" "$@"
+  fi
+}
+
+echo "OpenSSH target: ${USER}@${HOST}:${PORT}"
+echo "Preflight: show clock (retries=${RETRIES}, delay=${DELAY}s)"
+
+ok=0
+for i in $(seq 1 "$RETRIES"); do
+  if ssh_cmd "show clock"; then
+    ok=1
+    break
+  fi
+  echo "SSH preflight attempt ${i}/${RETRIES} failed; sleeping ${DELAY}s" >&2
+  sleep "$DELAY"
+done
+
+if [ "$ok" -ne 1 ]; then
+  echo "ERROR: OpenSSH KEX/login to ${USER}@${HOST}:${PORT} failed after ${RETRIES} tries." >&2
+  echo "kex_exchange_identification/Connection reset = device or port-forward rejecting SSH," >&2
+  echo "not the Jinja config. Re-check AAP ad-hoc ping NOW, same EE/instance group," >&2
+  echo "and containerlab SSH on port ${PORT}." >&2
+  exit 255
+fi
+
 mapfile -t LINES < <(grep -vE '^[[:space:]]*$|^!' "$CFG" || true)
 if [ "${#LINES[@]}" -eq 0 ]; then
   echo "No base_config lines to push"
@@ -22,15 +65,15 @@ fi
   echo "copy running-config startup-config"
 } > "$PUSH_FILE"
 
-REMOTE_CMD="$(awk '{printf "%s ; ", $0}' "$PUSH_FILE" | sed 's/ ; $//')"
-SSH_OPTS=(-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -p "$PORT")
+# Prefer a here-doc style session over one giant remote argv (more reliable on NX-OS).
+ssh_cmd "$(
+  {
+    echo "configure terminal"
+    printf '%s\n' "${LINES[@]}"
+    echo "end"
+    echo "copy running-config startup-config"
+  } | awk '{printf "%s\n", $0}' | paste -sd ';' -
+)"
 
-if [ -n "${SSHPASS:-}" ] && command -v sshpass >/dev/null 2>&1; then
-  sshpass -e ssh -tt "${SSH_OPTS[@]}" "${USER}@${HOST}" "$REMOTE_CMD"
-elif [ -n "${SSHPASS:-}" ]; then
-  echo "ERROR: ansible_password is set but sshpass is not installed in the EE" >&2
-  exit 1
-else
-  ssh -tt "${SSH_OPTS[@]}" "${USER}@${HOST}" "$REMOTE_CMD"
-fi
+echo "OpenSSH base_config push finished"
 {% endraw %}
