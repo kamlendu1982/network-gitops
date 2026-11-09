@@ -1,0 +1,6 @@
+{# Vendor-neutral interfaces -> cisco.nxos.nxos_l3_interfaces #}
+{% for i in interfaces if i.ipv4 is defined %}
+- name: {{ i.name }}
+  ipv4:
+    - address: {{ i.ipv4 }}
+{% endfor %}

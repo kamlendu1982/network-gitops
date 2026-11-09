@@ -1,0 +1,66 @@
+{#- ===================================================================
+    Cisco NX-OS onboarding baseline (N9K / n9kv)
+    Inputs: base_config (group_vars/all), mgmt (host_vars),
+            base_admin_secret (AAP credential / CyberArk, type-5 hash)
+    =================================================================== -#}
+{% set b = base_config %}
+{% set vrf = mgmt.vrf | default('') %}
+hostname {{ inventory_hostname }}
+!
+feature ssh
+{% if b.lldp %}
+feature lldp
+{% endif %}
+!
+clock timezone {{ b.timezone.abbreviation }} {{ b.timezone.utc_offset }} 0
+!
+ip domain-name {{ b.domain_name }}
+{% for ns in b.name_servers %}
+ip name-server {{ ns }}{{ ' use-vrf ' ~ vrf if vrf else '' }}
+{% endfor %}
+!
+{% if base_admin_secret is defined %}
+username {{ b.admin_user }} password 5 {{ base_admin_secret }} role network-admin
+!
+{% endif %}
+!
+{% if vrf %}
+vrf context {{ vrf }}
+!
+{% endif %}
+interface {{ mgmt.interface }}
+  description Management
+{% if vrf %}
+  vrf member {{ vrf }}
+{% endif %}
+  ip address {{ mgmt.address }}
+  no shutdown
+!
+{% if vrf %}
+vrf context {{ vrf }}
+  ip route 0.0.0.0/0 {{ mgmt.gateway }}
+{% else %}
+ip route 0.0.0.0/0 {{ mgmt.gateway }}
+{% endif %}
+!
+{% for s in b.ntp_servers %}
+ntp server {{ s }}{{ ' use-vrf ' ~ vrf if vrf else '' }}
+{% endfor %}
+!
+logging logfile messages 5 size 4194304
+logging level auth 5
+{% for s in b.syslog.servers %}
+logging server {{ s }}{{ ' use-vrf ' ~ vrf if vrf else '' }}
+{% endfor %}
+!
+{% if b.snmp.location is defined %}
+snmp-server location {{ b.snmp.location }}
+{% endif %}
+{% if b.snmp.contact is defined %}
+snmp-server contact {{ b.snmp.contact }}
+{% endif %}
+!
+line console
+  exec-timeout {{ b.session_timeout_min }}
+line vty
+  exec-timeout {{ b.session_timeout_min }}

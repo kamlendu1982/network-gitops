@@ -1,0 +1,14 @@
+---
+# replaced = enforce exactly what is in Git for the managed resources
+# merged   = add/update only, never remove
+# rendered = offline preview, no device connection
+netcfg_state: replaced
+
+# Features this role manages. Select a subset at run time with --tags.
+netcfg_features: [base_config, banner, interfaces]
+
+# base_config only runs when this is true (set by the onboard playbook).
+netcfg_onboarding: false
+
+netcfg_render_dir: "{{ lookup('ansible.builtin.env', 'PWD') }}/rendered"
+netcfg_backup_dir: "{{ lookup('ansible.builtin.env', 'PWD') }}/backups"

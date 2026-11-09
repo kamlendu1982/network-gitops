@@ -5,14 +5,15 @@ version: 0.1.0
 readme: README.md
 authors:
   - Network Automation Team
-description: Golden configuration roles per device class (Cisco IOS, Arista EOS, Juniper Junos)
+description: Golden configuration roles per device class (Cisco IOS, Cisco NX-OS, Arista EOS, Juniper Junos)
 license:
   - GPL-3.0-or-later
-tags: [networking, gitops, ios, eos, junos]
+tags: [networking, gitops, ios, nxos, eos, junos]
 dependencies:
   ansible.netcommon: ">=6.0.0"
   ansible.utils: ">=3.0.0"
   cisco.ios: ">=8.0.0"
+  cisco.nxos: ">=8.0.0"
   arista.eos: ">=9.0.0"
   junipernetworks.junos: ">=8.0.0"
 repository: https://github.com/acme/network-collection

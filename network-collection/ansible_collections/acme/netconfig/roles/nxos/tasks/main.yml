@@ -1,0 +1,36 @@
+---
+- name: Confirm this host is Cisco NX-OS
+  ansible.builtin.assert:
+    that: ansible_network_os == 'cisco.nxos.nxos'
+    fail_msg: "{{ inventory_hostname }} is {{ ansible_network_os }}, not cisco.nxos.nxos"
+    quiet: true
+
+# All features by default, or only the ones named with --tags (e.g. --tags banner).
+- name: Select features for this run
+  ansible.builtin.set_fact:
+    netcfg_selected: >-
+      {{ netcfg_features if ('all' in ansible_run_tags)
+         else netcfg_features | select('in', ansible_run_tags) | list }}
+
+- name: Base configuration (first-time onboarding only)
+  ansible.builtin.include_tasks:
+    file: base_config.yml
+    apply: {tags: [always]}
+  when:
+    - "'base_config' in netcfg_selected"
+    - netcfg_onboarding | bool
+  tags: [always]
+
+- name: Banner
+  ansible.builtin.include_tasks:
+    file: banner.yml
+    apply: {tags: [always]}
+  when: "'banner' in netcfg_selected"
+  tags: [always]
+
+- name: Interfaces
+  ansible.builtin.include_tasks:
+    file: interfaces.yml
+    apply: {tags: [always]}
+  when: "'interfaces' in netcfg_selected"
+  tags: [always]

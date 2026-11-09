@@ -1,0 +1,5 @@
+---
+netcfg_device_class: nxos
+ansible_connection: ansible.netcommon.network_cli
+ansible_network_os: cisco.nxos.nxos
+ansible_become: false
