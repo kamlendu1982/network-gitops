@@ -1,0 +1,41 @@
+---
+# Day 2 — enforce MOTD banner from Git (webhook-friendly).
+#
+# Intent: inventory/group_vars/all/banner.yml
+#
+# Local:
+#   ansible-playbook .../day2_banner.yml -e target=leaf4
+#
+# AAP Job Template (GitHub webhook):
+#   Playbook: network-collection/ansible_collections/acme/netconfig/playbooks/day2_banner.yml
+#   Inventory: kam-gitops-networking
+#   Limit: leaf4
+#   Project: Update revision on launch
+#   Webhook: GitHub (push) — demo by editing banner.yml and pushing
+
+- name: Day 2 — enforce banner from Git
+  hosts: "{{ target | default('all') }}"
+  gather_facts: false
+  serial: "{{ batch_size | default('20%') }}"
+  max_fail_percentage: 0
+  vars:
+    netcfg_onboarding: false
+    netcfg_features: [banner]
+    netcfg_os_class_map:
+      cisco.ios.ios: ios
+      cisco.nxos.nxos: nxos
+      arista.eos.eos: eos
+      junipernetworks.junos.junos: junos
+
+  tasks:
+    - name: Prepare host (device class + Git intent)
+      ansible.builtin.include_tasks:
+        file: tasks/prepare_host.yml
+        apply: {tags: [always]}
+      tags: [always]
+
+    - name: Apply banner for this device class
+      ansible.builtin.include_role:
+        name: "acme.netconfig.{{ netcfg_device_class }}"
+        apply: {tags: [always]}
+      tags: [always]

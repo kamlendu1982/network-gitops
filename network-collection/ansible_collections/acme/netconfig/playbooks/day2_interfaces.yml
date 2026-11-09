@@ -1,0 +1,42 @@
+---
+# Day 2 — enforce interfaces from Git (webhook-friendly).
+#
+# Intent: inventory/host_vars/<host>/device.yml  (interfaces: ...)
+#
+# Local:
+#   ansible-playbook .../day2_interfaces.yml -e target=leaf4
+#   ansible-playbook .../day2_interfaces.yml -e target=leaf4 --check --diff
+#
+# AAP Job Template (GitHub webhook):
+#   Playbook: network-collection/ansible_collections/acme/netconfig/playbooks/day2_interfaces.yml
+#   Inventory: kam-gitops-networking
+#   Limit: leaf4
+#   Project: Update revision on launch
+#   Webhook: GitHub (push) — demo by editing host_vars/leaf4/device.yml and pushing
+
+- name: Day 2 — enforce interfaces from Git
+  hosts: "{{ target | default('all') }}"
+  gather_facts: false
+  serial: "{{ batch_size | default('20%') }}"
+  max_fail_percentage: 0
+  vars:
+    netcfg_onboarding: false
+    netcfg_features: [interfaces]
+    netcfg_os_class_map:
+      cisco.ios.ios: ios
+      cisco.nxos.nxos: nxos
+      arista.eos.eos: eos
+      junipernetworks.junos.junos: junos
+
+  tasks:
+    - name: Prepare host (device class + Git intent)
+      ansible.builtin.include_tasks:
+        file: tasks/prepare_host.yml
+        apply: {tags: [always]}
+      tags: [always]
+
+    - name: Apply interfaces for this device class
+      ansible.builtin.include_role:
+        name: "acme.netconfig.{{ netcfg_device_class }}"
+        apply: {tags: [always]}
+      tags: [always]

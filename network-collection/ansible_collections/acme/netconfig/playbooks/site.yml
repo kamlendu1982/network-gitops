@@ -1,14 +1,10 @@
 ---
-# Day 2: enforce the golden config from Git. base_config is skipped
-# (netcfg_onboarding stays false), so only banner and interfaces run.
+# Day 2: enforce banner + interfaces from Git (base_config skipped).
+# Webhook PoC: use day2_banner.yml or day2_interfaces.yml (separate JTs).
 #
-#   ansible-playbook acme.netconfig.site                       # all devices
-#   ansible-playbook acme.netconfig.site --tags interfaces     # one feature
-#   ansible-playbook acme.netconfig.site --check --diff        # dry run
-#   ansible-playbook acme.netconfig.site -e netcfg_state=rendered
-#
-# Connection vars may come from NetBox/AAP inventory. Golden-config intent
-# is loaded from project inventory/.
+#   ansible-playbook .../site.yml -e target=leaf4
+#   ansible-playbook .../site.yml -e target=nxos --check --diff
+
 
 - name: Enforce golden config
   hosts: "{{ target | default('all') }}"
@@ -16,6 +12,8 @@
   serial: "{{ batch_size | default('20%') }}"
   max_fail_percentage: 0
   vars:
+    netcfg_onboarding: false
+    netcfg_features: [banner, interfaces]
     netcfg_os_class_map:
       cisco.ios.ios: ios
       cisco.nxos.nxos: nxos
