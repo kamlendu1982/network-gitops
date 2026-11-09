@@ -12,3 +12,7 @@ netcfg_onboarding: false
 
 netcfg_render_dir: "{{ lookup('ansible.builtin.env', 'PWD') }}/rendered"
 netcfg_backup_dir: "{{ lookup('ansible.builtin.env', 'PWD') }}/backups"
+
+# Rewrite mgmt0 IP/VRF/default-route only when explicitly enabled.
+# Default false: changing mgmt while connected over SSH causes session loss / timeouts.
+netcfg_configure_mgmt: false

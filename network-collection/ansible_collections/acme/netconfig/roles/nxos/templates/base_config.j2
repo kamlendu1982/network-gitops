@@ -1,10 +1,15 @@
 {#- ===================================================================
     Cisco NX-OS onboarding baseline (N9K / n9kv)
     Inputs: base_config (group_vars/all), mgmt (host_vars),
-            base_admin_secret (AAP credential / CyberArk, type-5 hash)
+            base_admin_secret (AAP credential / CyberArk, type-5 hash),
+            netcfg_configure_mgmt (bool, default false) — set true only when
+            you intentionally want to (re)write mgmt0 IP/VRF/default-route.
+            Rewriting mgmt while Ansible is connected via SSH usually drops
+            the session and surfaces as a command timeout.
     =================================================================== -#}
 {% set b = base_config %}
 {% set vrf = mgmt.vrf | default('') %}
+{% set configure_mgmt = netcfg_configure_mgmt | default(false) | bool %}
 hostname {{ inventory_hostname }}
 !
 {# Do not touch "feature ssh" — NX-OS rejects enable/disable while the
@@ -25,10 +30,11 @@ username {{ b.admin_user }} password 5 {{ base_admin_secret }} role network-admi
 !
 {% endif %}
 !
-{% if vrf %}
+{% if configure_mgmt and vrf %}
 vrf context {{ vrf }}
 !
 {% endif %}
+{% if configure_mgmt %}
 interface {{ mgmt.interface }}
   description Management
 {% if vrf %}
@@ -44,6 +50,7 @@ vrf context {{ vrf }}
 ip route 0.0.0.0/0 {{ mgmt.gateway }}
 {% endif %}
 !
+{% endif %}
 {% for s in b.ntp_servers %}
 ntp server {{ s }}{{ ' use-vrf ' ~ vrf if vrf else '' }}
 {% endfor %}

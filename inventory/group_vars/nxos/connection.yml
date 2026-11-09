@@ -7,3 +7,12 @@ ansible_network_os: cisco.nxos.nxos
 # N9K / containerlab labs usually already have a privileged user — no enable.
 ansible_become: false
 # ansible_user / ansible_password (or SSH key) come from the AAP credential, not Git.
+
+# N9K config + copy run start can exceed the default 60s.
+ansible_command_timeout: 180
+ansible_connect_timeout: 60
+ansible_persistent_command_timeout: 180
+
+# Do not rewrite mgmt0/default-route by default (drops the Ansible SSH session).
+# Set true in host_vars only for true day-0 bring-up with correct mgmt intent.
+netcfg_configure_mgmt: false

@@ -23,16 +23,23 @@
     msg: "{{ lookup('ansible.builtin.file', netcfg_render_dir ~ '/' ~ inventory_hostname ~ '_base_config.cfg').splitlines() }}"
   when: netcfg_state == 'rendered'
 
-- name: Push base config (backup first, save if changed)
+- name: Push base config (backup first; save in a separate task)
   cisco.nxos.nxos_config:
     src: "{{ netcfg_render_dir }}/{{ inventory_hostname }}_base_config.cfg"
     backup: true
     backup_options:
       dir_path: "{{ netcfg_backup_dir }}"
       filename: "{{ inventory_hostname }}_pre_onboard.cfg"
-    save_when: modified
+    save_when: never
   register: netcfg_base_result
   when: netcfg_state != 'rendered'
+
+- name: Save running-config after base config changes
+  cisco.nxos.nxos_config:
+    save_when: always
+  when:
+    - netcfg_state != 'rendered'
+    - netcfg_base_result is changed
 
 - name: Base config changes sent to the device
   ansible.builtin.debug:
