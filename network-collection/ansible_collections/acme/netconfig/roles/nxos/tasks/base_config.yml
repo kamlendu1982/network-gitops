@@ -61,50 +61,29 @@
     - netcfg_state != 'rendered'
     - (netcfg_nxos_cli_via | default('openssh')) == 'openssh'
 
+- name: Render OpenSSH push script
+  ansible.builtin.template:
+    src: push_base_openssh.sh.j2
+    dest: "{{ netcfg_render_dir }}/{{ inventory_hostname }}_push_base_openssh.sh"
+    mode: "0700"
+  delegate_to: localhost
+  become: false
+  when:
+    - netcfg_state != 'rendered'
+    - (netcfg_nxos_cli_via | default('openssh')) == 'openssh'
+    - netcfg_base_lines | length > 0
+
 - name: Push base config via OpenSSH (same stack as AAP ad-hoc ping)
-  ansible.builtin.shell: |
-    set -euo pipefail
-    CFG="{{ netcfg_render_dir }}/{{ inventory_hostname }}_base_config.cfg"
-    HOST="{{ ansible_host }}"
-    PORT="{{ ansible_port | default(22) | int }}"
-    USER="{{ ansible_user }}"
-
-    mapfile -t LINES < <(grep -vE '^[[:space:]]*$|^!' "$CFG" || true)
-    if [ "${#LINES[@]}" -eq 0 ]; then
-      echo "No base_config lines to push"
-      exit 0
-    fi
-
-    {
-      echo "configure terminal"
-      printf '%s\n' "${LINES[@]}"
-      echo "end"
-      echo "copy running-config startup-config"
-    } > "/tmp/{{ inventory_hostname }}_nxos_push.txt"
-
-    SSH_OPTS=(-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -p "$PORT")
-
-    if [ -n "${SSHPASS:-}" ] && command -v sshpass >/dev/null 2>&1; then
-      sshpass -e ssh -tt "${SSH_OPTS[@]}" "${USER}@${HOST}" "$(
-        awk '{printf "%s ; ", $0}' "/tmp/{{ inventory_hostname }}_nxos_push.txt" | sed 's/ ; $/\n/'
-      )"
-    elif [ -n "${SSHPASS:-}" ]; then
-      echo "ERROR: ansible_password is set but sshpass is not installed in the EE" >&2
-      exit 1
-    else
-      ssh -tt "${SSH_OPTS[@]}" "${USER}@${HOST}" "$(
-        awk '{printf "%s ; ", $0}' "/tmp/{{ inventory_hostname }}_nxos_push.txt" | sed 's/ ; $/\n/'
-      )"
-    fi
-  args:
-    executable: /bin/bash
+  ansible.builtin.command:
+    argv:
+      - /bin/bash
+      - "{{ netcfg_render_dir }}/{{ inventory_hostname }}_push_base_openssh.sh"
   environment:
     SSHPASS: "{{ ansible_password | default('') }}"
   delegate_to: localhost
   become: false
   register: netcfg_base_openssh
   changed_when: netcfg_base_openssh.rc == 0 and (netcfg_base_lines | length > 0)
-  no_log: false
   when:
     - netcfg_state != 'rendered'
     - (netcfg_nxos_cli_via | default('openssh')) == 'openssh'
