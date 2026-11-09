@@ -1,11 +1,8 @@
 ---
-# Loaded by prepare_host even when inventory is NetBox (connection comes from NetBox).
-# Do NOT put ansible_connection / ansible_host here — re-setting connection mid-play
-# can break network_cli against containerlab/n9kv.
-
+# NX-OS role tuning (also loaded by prepare_host for NetBox JTs).
 ansible_network_cli_ssh_type: paramiko
 
-# Fail-fast for lab testing (raise again once SSH/CLI is stable).
+# Fail-fast while debugging lab SSH; raise once stable.
 ansible_command_timeout: 30
 ansible_connect_timeout: 10
 ansible_persistent_command_timeout: 30
@@ -19,6 +16,6 @@ netcfg_ssh_timeout: 15
 netcfg_ssh_connect_timeout: 10
 netcfg_ssh_wait_timeout: 10
 
-# Keep ansible_connection=network_cli in NetBox.
-# Day-0 uses ansible.builtin.raw with task-level ansible_connection=ssh.
+# Day-0: ansible.builtin.raw + task-level ansible_connection=ssh
+# (inventory stays network_cli for nxos_* modules later).
 netcfg_nxos_cli_via: openssh

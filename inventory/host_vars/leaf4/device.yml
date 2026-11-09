@@ -1,20 +1,17 @@
 ---
-# Intent for leaf4 (n9kv). Keep mgmt out of "interfaces" so day-2
-# resource modules do not fight the onboarding baseline.
+# Intent for leaf4 (clab-vxlan-leaf4 / cisco_n9kv).
+# Keep mgmt out of "interfaces" so day-2 resource modules do not fight day-0.
 #
-# Mgmt IP/VRF/route are NOT pushed unless netcfg_configure_mgmt: true.
-# leaf4 is already reachable via NetBox/containerlab — rewriting mgmt0
-# with a wrong placeholder IP causes SSH session loss / command timeout.
+# Mgmt IP matches containerlab inspect (172.20.20.40). Do not enable
+# netcfg_configure_mgmt unless you intentionally rewrite mgmt0.
+
 netcfg_configure_mgmt: false
 
 mgmt:
   interface: mgmt0
   vrf: management
-  # Used for DNS/NTP/syslog "use-vrf" and only applied to the interface
-  # when netcfg_configure_mgmt is true — set to the real mgmt CIDR first.
-  address: 172.20.20.4/24
+  address: 172.20.20.40/24
   gateway: 172.20.20.1
-
 
 interfaces:
   - name: loopback0
