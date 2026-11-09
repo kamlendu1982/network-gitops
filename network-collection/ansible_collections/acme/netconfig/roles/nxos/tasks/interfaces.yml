@@ -5,11 +5,12 @@
     netcfg_l1_interfaces: "{{ lookup('ansible.builtin.template', 'interfaces.yml.j2') | from_yaml }}"
     netcfg_l3_interfaces: "{{ lookup('ansible.builtin.template', 'l3_interfaces.yml.j2') | from_yaml }}"
 
-# replaced only touches interfaces listed in Git; unlisted ports are left alone.
-- name: Interfaces (description, enabled, MTU)
+# Apply L2/L3 mode + admin state before addressing. Use merged when the
+# global state is replaced — safer on n9kv with mode: layer3.
+- name: Interfaces (description, enabled, MTU, L3 mode)
   cisco.nxos.nxos_interfaces:
     config: "{{ netcfg_l1_interfaces }}"
-    state: "{{ netcfg_state }}"
+    state: "{{ 'merged' if netcfg_state == 'replaced' else netcfg_state }}"
   register: netcfg_l1_result
 
 - name: Interface commands

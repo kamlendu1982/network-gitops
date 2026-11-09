@@ -1,4 +1,6 @@
-{# Vendor-neutral interfaces -> cisco.nxos.nxos_interfaces #}
+{# Vendor-neutral interfaces -> cisco.nxos.nxos_interfaces
+   Ethernet ports are L2 (switchport) by default on n9kv; IP addressing
+   requires mode layer3 (no switchport) first. #}
 {% for i in interfaces %}
 - name: {{ i.name }}
 {%   if i.description is defined %}
@@ -7,5 +9,8 @@
   enabled: {{ i.enabled | default(true) | bool | lower }}
 {%   if i.mtu is defined %}
   mtu: {{ i.mtu }}
+{%   endif %}
+{%   if i.ipv4 is defined and not (i.name | lower).startswith('loopback') and not (i.name | lower).startswith('lo') %}
+  mode: layer3
 {%   endif %}
 {% endfor %}
