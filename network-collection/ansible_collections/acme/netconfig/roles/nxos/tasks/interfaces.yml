@@ -16,10 +16,12 @@
   ansible.builtin.debug:
     msg: "{{ netcfg_l1_result.rendered if netcfg_state == 'rendered' else netcfg_l1_result.commands }}"
 
+# n9kv rejects "no ip redirects" that state=replaced often emits. Use merged
+# for live pushes; keep rendered/overridden/etc. when explicitly requested.
 - name: L3 interfaces (IPv4 addressing)
   cisco.nxos.nxos_l3_interfaces:
     config: "{{ netcfg_l3_interfaces }}"
-    state: "{{ netcfg_state }}"
+    state: "{{ 'merged' if netcfg_state == 'replaced' else netcfg_state }}"
   register: netcfg_l3_result
   when: netcfg_l3_interfaces | length > 0
 
