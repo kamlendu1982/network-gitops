@@ -14,7 +14,6 @@ interfaces:
   - name: Ethernet1/1
     description: Uplink to spine
     enabled: true
-    mtu: 9214
     ipv4: 10.30.0.9/30
   - name: Ethernet1/2
     description: Server rack A
