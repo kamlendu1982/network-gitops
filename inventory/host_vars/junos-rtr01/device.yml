@@ -1,4 +1,6 @@
 ---
+# Intent for junos-rtr01. Keep mgmt out of "interfaces" so day-2
+# resource modules do not fight the onboarding baseline.
 mgmt:
   interface: fxp0
   vrf: mgmt_junos               # Junos management instance

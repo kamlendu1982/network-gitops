@@ -1,4 +1,6 @@
 ---
+# Intent for eos-sw01. Keep mgmt out of "interfaces" so day-2
+# resource modules do not fight the onboarding baseline.
 mgmt:
   interface: Management1
   vrf: MGMT

@@ -1,4 +1,6 @@
 ---
+# Intent for ios-rtr01. Keep mgmt out of "interfaces" so day-2
+# resource modules do not fight the onboarding baseline.
 mgmt:
   interface: GigabitEthernet0
   vrf: Mgmt-intf

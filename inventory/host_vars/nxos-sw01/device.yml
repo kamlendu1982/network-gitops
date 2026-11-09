@@ -1,4 +1,5 @@
 ---
+# Sample NX-OS host (optional). Prefer leaf4 for the containerlab lab.
 mgmt:
   interface: mgmt0
   vrf: management
@@ -9,12 +10,12 @@ interfaces:
   - name: loopback0
     description: Router ID
     enabled: true
-    ipv4: 10.255.0.4/32
+    ipv4: 10.255.0.41/32
   - name: Ethernet1/1
     description: Uplink to spine
     enabled: true
     mtu: 9214
-    ipv4: 10.30.0.5/30
+    ipv4: 10.30.0.9/30
   - name: Ethernet1/2
     description: Server rack A
     enabled: true

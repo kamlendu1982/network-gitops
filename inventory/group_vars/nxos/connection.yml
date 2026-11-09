@@ -1,5 +1,9 @@
 ---
+# Required for role dispatch (also derived from ansible_network_os in the playbooks).
 netcfg_device_class: nxos
+
 ansible_connection: ansible.netcommon.network_cli
 ansible_network_os: cisco.nxos.nxos
+# N9K / containerlab labs usually already have a privileged user — no enable.
 ansible_become: false
+# ansible_user / ansible_password (or SSH key) come from the AAP credential, not Git.

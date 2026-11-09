@@ -1,6 +1,9 @@
 ---
+# Required for role dispatch (also derived from ansible_network_os in the playbooks).
 netcfg_device_class: ios
+
 ansible_connection: ansible.netcommon.network_cli
 ansible_network_os: cisco.ios.ios
 ansible_become: true
 ansible_become_method: enable
+# ansible_user / ansible_password (or SSH key) come from the AAP credential, not Git.

@@ -1,4 +1,5 @@
 ---
+# Required by role argument_specs (day-0 and day-2).
 banner:
   motd: |
     ****************************************************************

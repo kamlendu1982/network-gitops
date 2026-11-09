@@ -12,8 +12,35 @@
   gather_facts: false
   serial: "{{ batch_size | default('20%') }}"
   max_fail_percentage: 0
+  vars:
+    netcfg_os_class_map:
+      cisco.ios.ios: ios
+      cisco.nxos.nxos: nxos
+      arista.eos.eos: eos
+      junipernetworks.junos.junos: junos
 
   tasks:
+    - name: Resolve device class from ansible_network_os when not set
+      ansible.builtin.set_fact:
+        netcfg_device_class: "{{ netcfg_os_class_map[ansible_network_os] }}"
+      when:
+        - netcfg_device_class is not defined
+        - ansible_network_os is defined
+        - ansible_network_os in netcfg_os_class_map
+      tags: [always]
+
+    - name: Require a known device class
+      ansible.builtin.assert:
+        that:
+          - netcfg_device_class is defined
+          - netcfg_device_class in netcfg_os_class_map.values() | list
+        fail_msg: >-
+          Cannot resolve device class for {{ inventory_hostname }}.
+          Set netcfg_device_class (ios|nxos|eos|junos) or ansible_network_os
+          to one of: {{ netcfg_os_class_map.keys() | list | join(', ') }}.
+        quiet: true
+      tags: [always]
+
     - name: Apply golden config for this device class
       ansible.builtin.include_role:
         name: "acme.netconfig.{{ netcfg_device_class }}"

@@ -1,4 +1,7 @@
 ---
+# Required for role dispatch (also derived from ansible_network_os in the playbooks).
 netcfg_device_class: junos
+
 ansible_connection: ansible.netcommon.netconf
 ansible_network_os: junipernetworks.junos.junos
+# ansible_user / ansible_password (or SSH key) come from the AAP credential, not Git.

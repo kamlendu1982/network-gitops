@@ -1,12 +1,13 @@
 ---
 # Vendor-neutral onboarding baseline, shared by every device class.
 # Each role's templates/base_config.j2 turns this into that vendor's syntax.
+# Required by role argument_specs (day-0 and day-2).
 
 base_config:
   domain_name: corp.example.com
   timezone:
     name: America/New_York      # EOS and Junos use the IANA name
-    abbreviation: EST           # IOS uses abbreviation + offset
+    abbreviation: EST           # IOS and NX-OS use abbreviation + offset
     utc_offset: -5
   name_servers:
     - 10.0.0.53
@@ -26,4 +27,5 @@ base_config:
   admin_user: netadmin
   # The admin password hash is never stored in Git. Inject base_admin_secret
   # at run time from an AAP credential backed by CyberArk. If it's not set,
-  # the template skips the local user (and the IOS AAA lines).
+  # the template skips the local user (and IOS AAA lines).
+  # Hash formats: IOS type 9, NX-OS type 5, EOS sha512, Junos $6$ crypt.
