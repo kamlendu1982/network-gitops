@@ -7,7 +7,8 @@
 {% set vrf = mgmt.vrf | default('') %}
 hostname {{ inventory_hostname }}
 !
-feature ssh
+{# Do not touch "feature ssh" — NX-OS rejects enable/disable while the
+   session is itself SSH (which is how Ansible is connected). #}
 {% if b.lldp %}
 feature lldp
 {% endif %}
