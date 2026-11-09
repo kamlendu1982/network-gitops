@@ -1,0 +1,57 @@
+---
+# Quick SSH/CLI check for one device (use when AAP ad-hoc has no "raw" module).
+#
+# Job Template:
+#   Playbook: network-collection/ansible_collections/acme/netconfig/playbooks/check_reachability.yml
+#   Limit: leaf4
+#   Credential: same Network credential as onboard
+#   Extra vars (optional): target=leaf4
+#
+#   ansible-playbook .../check_reachability.yml -e target=leaf4
+
+- name: Check device reachability over Ansible SSH (raw)
+  hosts: "{{ target | default('network') }}"
+  gather_facts: false
+  serial: 1
+  vars:
+    ansible_connection: ssh
+    ansible_become: false
+    ansible_ssh_timeout: 60
+    ansible_ssh_common_args: >-
+      -o ConnectTimeout=30
+      -o StrictHostKeyChecking=no
+      -o UserKnownHostsFile=/dev/null
+
+  tasks:
+    - name: Show target
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }} -> {{ ansible_host | default('unset') }}:{{ ansible_port | default(22) }}
+          (forced ansible_connection=ssh for this play)
+
+    - name: Run show clock via raw
+      ansible.builtin.raw: show clock
+      register: netcfg_check_raw
+      changed_when: false
+      ignore_unreachable: true
+      failed_when: false
+
+    - name: Raw result
+      ansible.builtin.debug:
+        msg:
+          unreachable: "{{ netcfg_check_raw.unreachable | default(false) }}"
+          rc: "{{ netcfg_check_raw.rc | default('n/a') }}"
+          stdout: "{{ netcfg_check_raw.stdout | default('') }}"
+          stderr: "{{ netcfg_check_raw.stderr | default('') }}"
+          msg: "{{ netcfg_check_raw.msg | default('') }}"
+
+    - name: Fail if SSH/CLI did not work
+      ansible.builtin.assert:
+        that:
+          - not (netcfg_check_raw.unreachable | default(false) | bool)
+          - (netcfg_check_raw.rc | default(1)) == 0
+        fail_msg: >-
+          SSH raw to {{ ansible_host }}:{{ ansible_port | default(22) }} failed.
+          Fix containerlab/n9kv SSH on that port before running onboard.
+          (ad-hoc ping is not a sufficient check for NX-OS CLI.)
+        quiet: true

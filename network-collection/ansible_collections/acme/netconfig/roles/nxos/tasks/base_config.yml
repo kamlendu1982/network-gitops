@@ -39,14 +39,33 @@
       }}
   when: netcfg_state != 'rendered'
 
+- name: Show connection target used for day-0 SSH
+  ansible.builtin.debug:
+    msg: >-
+      host={{ inventory_hostname }}
+      ansible_host={{ ansible_host | default('unset') }}
+      ansible_port={{ ansible_port | default(22) }}
+      inventory ansible_connection={{ ansible_connection | default('unset') }}
+      day0 override=ssh/raw
+  when: netcfg_state != 'rendered'
+
 - name: Prove Ansible SSH login (raw show clock — same stack as ad-hoc ping)
   ansible.builtin.raw: show clock
   vars:
     ansible_connection: ssh
     ansible_become: false
+    ansible_ssh_timeout: "{{ netcfg_ssh_timeout | default(60) | int }}"
+    ansible_ssh_common_args: >-
+      -o ConnectTimeout={{ netcfg_ssh_connect_timeout | default(30) | int }}
+      -o StrictHostKeyChecking=no
+      -o UserKnownHostsFile=/dev/null
   register: netcfg_ssh_preflight
   changed_when: false
   failed_when: false
+  ignore_unreachable: true
+  retries: "{{ netcfg_push_retries | default(5) | int }}"
+  delay: "{{ netcfg_push_delay | default(15) | int }}"
+  until: (netcfg_ssh_preflight.rc | default(1)) == 0
   when:
     - netcfg_state != 'rendered'
     - (netcfg_nxos_cli_via | default('openssh')) == 'openssh'
@@ -54,12 +73,19 @@
 - name: Require Ansible SSH preflight success
   ansible.builtin.assert:
     that:
-      - netcfg_ssh_preflight.rc | default(1) == 0
+      - not (netcfg_ssh_preflight.unreachable | default(false) | bool)
+      - (netcfg_ssh_preflight.rc | default(1)) == 0
     fail_msg: >-
-      Ansible SSH raw preflight failed (rc={{ netcfg_ssh_preflight.rc | default('n/a') }}).
+      Ansible SSH raw to {{ ansible_host }}:{{ ansible_port | default(22) }} failed.
+      unreachable={{ netcfg_ssh_preflight.unreachable | default(false) }}
+      msg={{ netcfg_ssh_preflight.msg | default('') }}
       stdout={{ netcfg_ssh_preflight.stdout | default('') }}
       stderr={{ netcfg_ssh_preflight.stderr | default('') }}
-      If ad-hoc ping works but this fails, compare credential/connection on the JT.
+      NOTE: ad-hoc ping succeeding only proves Python/SSH to something on that
+      socket; it does not prove NX-OS accepts CLI. Run AAP ad-hoc module=raw
+      args='show clock' against leaf4 with the same credential/EE. Banner
+      timeout usually means n9kv SSH/port-forward on {{ ansible_port | default(22) }}
+      is stuck — restart the containerlab node or check 'containerlab inspect'.
     quiet: true
   when:
     - netcfg_state != 'rendered'
@@ -74,12 +100,18 @@
   vars:
     ansible_connection: ssh
     ansible_become: false
+    ansible_ssh_timeout: "{{ netcfg_ssh_timeout | default(60) | int }}"
+    ansible_ssh_common_args: >-
+      -o ConnectTimeout={{ netcfg_ssh_connect_timeout | default(30) | int }}
+      -o StrictHostKeyChecking=no
+      -o UserKnownHostsFile=/dev/null
   register: netcfg_base_raw
   changed_when: netcfg_base_lines | length > 0
   when:
     - netcfg_state != 'rendered'
     - (netcfg_nxos_cli_via | default('openssh')) == 'openssh'
     - netcfg_base_lines | length > 0
+
 
 - name: Prove network_cli login (show version)
   cisco.nxos.nxos_command:
