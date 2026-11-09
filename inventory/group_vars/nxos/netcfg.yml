@@ -3,23 +3,22 @@
 # Do NOT put ansible_connection / ansible_host here — re-setting connection mid-play
 # can break network_cli against containerlab/n9kv.
 
-# AAP EEs often default network_cli to libssh; that commonly RST against NX-OS labs.
-# Ad-hoc "ping" uses plain SSH and can succeed while nxos_config fails — this fixes that.
 ansible_network_cli_ssh_type: paramiko
 
-ansible_command_timeout: 180
-ansible_connect_timeout: 60
-ansible_persistent_command_timeout: 180
-ansible_ssh_retries: 3
+# Fail-fast for lab testing (raise again once SSH/CLI is stable).
+ansible_command_timeout: 30
+ansible_connect_timeout: 10
+ansible_persistent_command_timeout: 30
+ansible_ssh_retries: 0
 
 netcfg_configure_mgmt: false
 netcfg_backup: false
-netcfg_push_retries: 5
-netcfg_push_delay: 15
+netcfg_push_retries: 0
+netcfg_push_delay: 0
+netcfg_ssh_timeout: 15
+netcfg_ssh_connect_timeout: 10
+netcfg_ssh_wait_timeout: 10
 
 # Keep ansible_connection=network_cli in NetBox.
-# Day-0 uses ansible.builtin.raw with task-level ansible_connection=ssh
-# (same stack as AAP ad-hoc ping). Set network_cli to use nxos_* modules.
+# Day-0 uses ansible.builtin.raw with task-level ansible_connection=ssh.
 netcfg_nxos_cli_via: openssh
-
-

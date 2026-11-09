@@ -3,22 +3,24 @@
 #
 # Job Template:
 #   Playbook: network-collection/ansible_collections/acme/netconfig/playbooks/check_reachability.yml
-#   Limit: leaf4
+#   Limit: leaf4                    # required with NetBox inventory (no "network" group)
 #   Credential: same Network credential as onboard
 #   Extra vars (optional): target=leaf4
 #
 #   ansible-playbook .../check_reachability.yml -e target=leaf4
 
 - name: Check device reachability over Ansible SSH (raw)
-  hosts: "{{ target | default('network') }}"
+  # Default "all" so NetBox inventories work; always set Limit or target=leaf4.
+  hosts: "{{ target | default('all') }}"
   gather_facts: false
   serial: 1
   vars:
     ansible_connection: ssh
     ansible_become: false
-    ansible_ssh_timeout: 60
+    # Fail-fast for lab testing
+    ansible_ssh_timeout: 15
     ansible_ssh_common_args: >-
-      -o ConnectTimeout=30
+      -o ConnectTimeout=10
       -o StrictHostKeyChecking=no
       -o UserKnownHostsFile=/dev/null
 

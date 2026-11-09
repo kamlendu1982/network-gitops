@@ -11,7 +11,7 @@
 # is loaded from project inventory/.
 
 - name: Enforce golden config
-  hosts: "{{ target | default('network') }}"
+  hosts: "{{ target | default('all') }}"
   gather_facts: false
   serial: "{{ batch_size | default('20%') }}"
   max_fail_percentage: 0

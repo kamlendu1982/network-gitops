@@ -21,9 +21,13 @@ netcfg_configure_mgmt: false
 
 # Backup before push (fetch running-config). Off by default — safer on flaky lab SSH.
 netcfg_backup: false
-netcfg_push_retries: 3
-netcfg_push_delay: 10
-netcfg_ssh_wait_timeout: 30
+# Fail-fast defaults for lab testing (inventory/group_vars/nxos/netcfg.yml may override).
+netcfg_push_retries: 0
+netcfg_push_delay: 0
+netcfg_ssh_wait_timeout: 10
+netcfg_ssh_timeout: 15
+netcfg_ssh_connect_timeout: 10
+
 
 # Day-0 push transport for NX-OS:
 #   openssh     — ansible.builtin.raw + task ansible_connection=ssh (same stack as ad-hoc ping)

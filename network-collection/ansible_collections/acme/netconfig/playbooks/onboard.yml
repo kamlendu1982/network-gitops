@@ -8,7 +8,9 @@
 # (base_config, banner, mgmt, interfaces) is loaded from project inventory/.
 
 - name: Onboard network devices
-  hosts: "{{ target | default('network') }}"
+  # With NetBox, prefer JT Limit (e.g. leaf4) or -e target=leaf4.
+  # "network" exists only in the sample static inventory.
+  hosts: "{{ target | default('all') }}"
   gather_facts: false
   serial: "{{ batch_size | default(5) }}"
   max_fail_percentage: 0

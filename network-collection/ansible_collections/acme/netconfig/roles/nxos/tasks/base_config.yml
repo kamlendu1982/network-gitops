@@ -54,21 +54,22 @@
   vars:
     ansible_connection: ssh
     ansible_become: false
-    ansible_ssh_timeout: "{{ netcfg_ssh_timeout | default(60) | int }}"
+    ansible_ssh_timeout: "{{ netcfg_ssh_timeout | default(15) | int }}"
     ansible_ssh_common_args: >-
-      -o ConnectTimeout={{ netcfg_ssh_connect_timeout | default(30) | int }}
+      -o ConnectTimeout={{ netcfg_ssh_connect_timeout | default(10) | int }}
       -o StrictHostKeyChecking=no
       -o UserKnownHostsFile=/dev/null
   register: netcfg_ssh_preflight
   changed_when: false
   failed_when: false
   ignore_unreachable: true
-  retries: "{{ netcfg_push_retries | default(5) | int }}"
-  delay: "{{ netcfg_push_delay | default(15) | int }}"
+  retries: "{{ netcfg_push_retries | default(0) | int }}"
+  delay: "{{ netcfg_push_delay | default(0) | int }}"
   until: (netcfg_ssh_preflight.rc | default(1)) == 0
   when:
     - netcfg_state != 'rendered'
     - (netcfg_nxos_cli_via | default('openssh')) == 'openssh'
+
 
 - name: Require Ansible SSH preflight success
   ansible.builtin.assert:
@@ -100,9 +101,9 @@
   vars:
     ansible_connection: ssh
     ansible_become: false
-    ansible_ssh_timeout: "{{ netcfg_ssh_timeout | default(60) | int }}"
+    ansible_ssh_timeout: "{{ netcfg_ssh_timeout | default(15) | int }}"
     ansible_ssh_common_args: >-
-      -o ConnectTimeout={{ netcfg_ssh_connect_timeout | default(30) | int }}
+      -o ConnectTimeout={{ netcfg_ssh_connect_timeout | default(10) | int }}
       -o StrictHostKeyChecking=no
       -o UserKnownHostsFile=/dev/null
   register: netcfg_base_raw
@@ -111,6 +112,7 @@
     - netcfg_state != 'rendered'
     - (netcfg_nxos_cli_via | default('openssh')) == 'openssh'
     - netcfg_base_lines | length > 0
+
 
 
 - name: Prove network_cli login (show version)
