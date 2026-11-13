@@ -4,5 +4,5 @@ banner:
   motd: |
     ****************************************************************
     *  Authorized access only. All activity is logged and monitored.
-    *  This device is managed by Ansible-GitOps. Manual changes are reverted.
+    *  This device is managed by Ansible-GitOps-Kam. Manual changes are reverted.
     ****************************************************************
