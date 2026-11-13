@@ -1,0 +1,32 @@
+---
+# Intent for leaf3 (clab-vxlan-leaf3 / cisco_n9kv).
+# Keep mgmt out of "interfaces" so day-2 resource modules do not fight day-0.
+#
+# Mgmt IP is device intent only (not ansible_host). Do not enable
+# netcfg_configure_mgmt unless you intentionally rewrite mgmt0.
+
+netcfg_configure_mgmt: false
+
+mgmt:
+  interface: mgmt0
+  vrf: management
+  address: 172.20.20.39/24
+  gateway: 172.20.20.1
+
+interfaces:
+  - name: loopback0
+    description: Router ID
+    enabled: true
+    ipv4: 10.255.0.3/32
+  - name: Ethernet1/1
+    description: Uplink to spine
+    enabled: true
+    # NX-OS n9kv: interface MTU must be default or system jumbo MTU
+    # (set system jumbomtu first). Omit mtu for POC.
+    ipv4: 10.30.0.1/30
+  - name: Ethernet1/2
+    description: Server rack A
+    enabled: true
+  - name: Ethernet1/3
+    description: Unused
+    enabled: false
